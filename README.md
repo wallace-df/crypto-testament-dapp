@@ -6,7 +6,7 @@ CryptoTestament is a dApp deployed on the RSK network (https://rsk.co/) that all
 Live dApp: https://cryptotestament.io/app
 
 
-## Install project dependencies
+### Install project dependencies
 ```
 yarn install
 ```
