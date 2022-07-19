@@ -1,24 +1,27 @@
-# cryptotestament
+# CryptoTestament
+Vue.js implementation for CryptoTestament dApp using vue-cli-service and vue-router.
 
-## Project setup
+CryptoTestament is a dApp deployed on the RSK network (https://rsk.co/) that allows BTC holders to create digital testaments powered by smart contracts.
+
+Live dApp: https://cryptotestament.io/app
+
+
+## Install project dependencies
 ```
 yarn install
 ```
 
-### Compiles and hot-reloads for development
+### Start development server with hot-reload
 ```
 yarn serve
 ```
 
-### Compiles and minifies for production
+### Build for testing (RKS TestNet)
 ```
-yarn build
-```
-
-### Lints and fixes files
-```
-yarn lint
+yarn build-test
 ```
 
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
+### Build for production (RKS MainNet)
+```
+yarn build-prod
+```
