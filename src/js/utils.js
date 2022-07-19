@@ -102,15 +102,24 @@ export function formatUnit(value, decimals) {
     return value;
 }
 
-export function encryptUsingServiceKey(servicePublicKey, data) {
+export function encryptUsingServicePublicKey(servicePublicKey, data) {
     let jsEncrypt = new JSEncrypt();
     jsEncrypt.setPublicKey(servicePublicKey);
     return jsEncrypt.encrypt(data);
 }
 
+export function decryptUsingServicePrivateKey(servicePrivateKey, data) {
+    let jsEncrypt = new JSEncrypt();
+    jsEncrypt.setPrivateKey(servicePrivateKey);
+    return jsEncrypt.decrypt(data);
+}
+
+export function decryptTestamentInfo(encryptionKey, encryptedTestamentInfo) {
+    return JSON.parse(CryptoJS.AES.decrypt(encryptedTestamentInfo, encryptionKey).toString(CryptoJS.enc.Utf8));
+}
 
 export function parseTestament(data, testament, encryptionKey) {
-    let decryptedInfo = JSON.parse(CryptoJS.AES.decrypt(testament.encryptedInfo, encryptionKey).toString(CryptoJS.enc.Utf8));
+    let decryptedInfo = this.decryptTestamentInfo(encryptionKey, testament.encryptedInfo);
 
     data.inputName = decryptedInfo.name;
     data.inputEmail = decryptedInfo.email;

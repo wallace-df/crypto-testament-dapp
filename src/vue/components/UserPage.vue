@@ -152,7 +152,7 @@ import Config from "../../../resources/config.js";
 const $ = window.jQuery;
 
 export default {
-  name: "App",
+  name: "UserPage",
 
   async created() {
     await this.connect();
@@ -160,29 +160,28 @@ export default {
 
   data() {
     return {
-        loading: false,
-        loadingError: null,
+      loading: false,
+      loadingError: null,
 
-        walletAddress: null,
-        editMode: false,
-        processing: false,
+      walletAddress: null,
+      editMode: false,
+      processing: false,
 
-        testament: null,
-        status: null,
-        formInputChanged: {testatorName: false, testatorEmail: false},
-        inputDepositAmount: "",
-        inputWithdrawAmount: "",
-        inputName: "",
-        inputEmail: "",
-        inputBeneficiaryName: "",
-        inputBeneficiaryEmail: "",
-        inputBeneficiaryAddress: "",
-        inputProofOfLife: 30
-    }
+      testament: null,
+      status: null,
+      formInputChanged: { testatorName: false, testatorEmail: false },
+      inputDepositAmount: "",
+      inputWithdrawAmount: "",
+      inputName: "",
+      inputEmail: "",
+      inputBeneficiaryName: "",
+      inputBeneficiaryEmail: "",
+      inputBeneficiaryAddress: "",
+      inputProofOfLife: 30,
+    };
   },
 
-  computed: {    
-
+  computed: {
     nameValid() {
       return !Utils.isEmpty(this.inputName);
     },
@@ -204,20 +203,13 @@ export default {
     },
 
     formValid() {
-      return (
-        this.nameValid &&
-        this.emailValid &&
-        this.beneficiaryNameValid &&
-        this.beneficiaryEmailValid &&
-        this.beneficiaryAddressValid &&
-        Number(this.inputProofOfLife) >= 30
-      );
+      return this.nameValid && this.emailValid && this.beneficiaryNameValid && this.beneficiaryEmailValid && this.beneficiaryAddressValid && Number(this.inputProofOfLife) >= 30;
     },
 
     validDepositAmount() {
       try {
         let value = Utils.toBaseUnit(this.inputDepositAmount.trim(), 18);
-        return (value.toString() !== "0");  
+        return value.toString() !== "0";
       } catch (err) {
         return false;
       }
@@ -227,7 +219,7 @@ export default {
       try {
         let value = Utils.toBaseUnit(this.inputWithdrawAmount.trim(), 18);
         let testamentBalance = Utils.toBN(this.testament.testamentBalance);
-        return (value.toString() !== "0" && value.lte(testamentBalance));  
+        return value.toString() !== "0" && value.lte(testamentBalance);
       } catch (err) {
         return false;
       }
@@ -242,7 +234,7 @@ export default {
 
     formattedUnlockTime() {
       if (this.testament) {
-        let unlockTime = (Number(this.testament.lastProofOfLifeTimestamp) + Number(this.testament.proofOfLifeThreshold));
+        let unlockTime = Number(this.testament.lastProofOfLifeTimestamp) + Number(this.testament.proofOfLifeThreshold);
         let date = new Date(unlockTime * 1000);
         return date.toISOString().replace("T", " ").replace(".000Z", "") + " UTC";
       }
@@ -305,275 +297,270 @@ export default {
 
     testamentExecuted() {
       return this.testament && this.testament.status === "2";
-    }
+    },
   },
 
   methods: {
-
-      async connect() {
-        this.loading = true;
-        try {
-          let walletInstance = await Wallet.getInstance();
-          this.walletAddress = walletInstance.walletAddress;
-          
-          let testament = await walletInstance.testamentServiceContract.methods.testamentDetailsOf(this.walletAddress).call();
-
-          if (testament.exists) {
-            Utils.parseTestament(this, testament, walletInstance.encryptionKey);
-          }
-
-          this.loading = false;
-
-        } catch(err) {
-          console.log(err);
-          let error = err;
-          if (err.message) {
-            error = err.message;
-          }
-
-          this.loading = false;
-          this.loadingError = error;
-        }
-      },
-
-      formChanged(fieldName) {
-        this.formInputChanged[fieldName] = true;
-      },
-
-      setMaxWithdrawAmount() {
-        if (!this.processing) {
-          this.inputWithdrawAmount = Utils.formatUnit(Utils.toBN(this.testament.testamentBalance), 18)
-        }
-      },
-     
-      async setupTestament() {
+    async connect() {
+      this.loading = true;
+      try {
         let walletInstance = await Wallet.getInstance();
-        
-        let name = this.inputName.trim();
-        let email = this.inputEmail.trim();
-        let beneficiaryName = this.inputBeneficiaryName.trim();
-        let beneficiaryEmail = this.inputBeneficiaryEmail.trim();
-        let beneficiaryAddress = this.inputBeneficiaryAddress.trim().toLowerCase();
-        let proofOfLifeThreshold = Number(this.inputProofOfLife) * 24 * 3600; 
-        let ctx = this; 
+        this.walletAddress = walletInstance.walletAddress;
 
-        let encryptedInfo = Utils.encryptTestament(name, email, beneficiaryName, beneficiaryEmail, walletInstance.encryptionKey);
+        let testament = await walletInstance.testamentServiceContract.methods.testamentDetailsOf(this.walletAddress).call();
 
-        function onError(err) {
-          ctx.processing = false;
-          console.log(err);
-
-          // Error 4001 means that user just denied the signature of the transaction, no need to show an error.
-          // The "Invalid JSON RPC response" is a workaround for the RSK wallet which doesn"t provide a good error code...
-          if (err.code !== 4001 && String(err).indexOf("Invalid JSON RPC response") === -1) {
-            let errorMsg = err;
-            if (err.message && err.message.trim().length > 0) {
-              errorMsg = err.message;
-            }
-            $("#errorMsg").text(errorMsg);
-            $("#errorModal").modal("show");
-          }
-        }
-
-        this.processing = true;
-
-        let encryptedEncryptionKey = Utils.encryptUsingServiceKey(Config.servicePublickKey, walletInstance.encryptionKey);
-        
-        Utils.invokeMethodAndWaitConfirmation(
-          walletInstance.web3Instance,
-          walletInstance.testamentServiceContract.methods.setupTestament(beneficiaryAddress, proofOfLifeThreshold, encryptedEncryptionKey, encryptedInfo), 
-          this.walletAddress,
-          async function() {
-            try {
-              let testament =  await walletInstance.testamentServiceContract.methods.testamentDetailsOf(ctx.walletAddress).call();
-              Utils.parseTestament(ctx, testament, walletInstance.encryptionKey);
-              ctx.processing = false;
-              ctx.editMode = false;
-            } catch (err) {
-              onError(err);
-            }
-          },
-          function(err) {
-            onError(err);
-          }
-        );
-      },
-
-      editTestament() {
-        this.editMode = true;
-        this.$nextTick(() => this.$refs.txtName.focus());
-      },
-
-      async cancelTestamentChanges() {
-        this.editMode = false;
-        let walletInstance = await Wallet.getInstance();
-        Utils.parseTestament(this, this.testament, walletInstance.encryptionKey);
-      },
-
-      async cancelTestament() {
-        let ctx = this;
-        this.processing = true;
-
-        function onError(err) {
-          ctx.processing = false;
-          console.log(err);
-
-          // Error 4001 means that user just denied the signature of the transaction, no need to show an error.
-          // The "Invalid JSON RPC response" is a workaround for the RSK wallet which doesn"t provide a good error code...
-          if (err.code !== 4001 && String(err).indexOf("Invalid JSON RPC response") === -1) {
-            let errorMsg = err;
-            if (err.message && err.message.trim().length > 0) {
-              errorMsg = err.message;
-            }
-            $("#errorMsg").text(errorMsg);
-            $("#errorModal").modal("show");
-          }
-        }
-        
-        let walletInstance = await Wallet.getInstance();
-
-        Utils.invokeMethodAndWaitConfirmation(
-          walletInstance.web3Instance,
-          walletInstance.testamentServiceContract.methods.cancelTestament(), 
-          this.walletAddress,
-          async function() {
-            try {
-              let testament =  await walletInstance.testamentServiceContract.methods.testamentDetailsOf(ctx.walletAddress).call();
-              Utils.parseTestament(ctx, testament, walletInstance.encryptionKey);
-              ctx.cancelTestamentChanges();         
-              ctx.processing = false;
-            } catch (err) {
-              onError(err);
-            }
-          },
-          function(err) {
-            onError(err);
-          }
-        );       
-      },
-
-      async reactivateTestament() {
-        let ctx = this;
-        this.processing = true;
-
-        function onError(err) {
-          ctx.processing = false;
-          console.log(err);
-
-          // Error 4001 means that user just denied the signature of the transaction, no need to show an error.
-          // The "Invalid JSON RPC response" is a workaround for the RSK wallet which doesn"t provide a good error code...
-          if (err.code !== 4001 && String(err).indexOf("Invalid JSON RPC response") === -1) {
-            let errorMsg = err;
-            if (err.message && err.message.trim().length > 0) {
-              errorMsg = err.message;
-            }
-            $("#errorMsg").text(errorMsg);
-            $("#errorModal").modal("show");
-          }
-        }
-
-        let walletInstance = await Wallet.getInstance();
-
-        Utils.invokeMethodAndWaitConfirmation(
-          walletInstance.web3Instance,
-          walletInstance.testamentServiceContract.methods.reactivateTestament(), 
-          this.walletAddress,
-          async function() {
-            try {
-              let testament =  await walletInstance.testamentServiceContract.methods.testamentDetailsOf(ctx.walletAddress).call();
-              Utils.parseTestament(ctx, testament, walletInstance.encryptionKey);
-              ctx.cancelTestamentChanges();         
-              ctx.processing = false;
-            } catch (err) {
-              onError(err);
-            }
-          },
-          function(err) {
-            onError(err);
-          }
-        );       
-      },
-
-      async depositFunds() {
-        let ctx = this;
-        this.processing = true;
-
-        function onError(err) {
-          ctx.processing = false;
-          console.log(err);
-
-          // Error 4001 means that user just denied the signature of the transaction, no need to show an error.
-          // The "Invalid JSON RPC response" is a workaround for the RSK wallet which doesn"t provide a good error code...
-          if (err.code !== 4001 && String(err).indexOf("Invalid JSON RPC response") === -1) {
-            let errorMsg = err;
-            if (err.message && err.message.trim().length > 0) {
-              errorMsg = err.message;
-            }
-            $("#errorMsg").text(errorMsg);
-            $("#errorModal").modal("show");
-          }
-        }
-
-        let walletInstance = await Wallet.getInstance();
-
-        try {
-          await walletInstance.web3Instance.eth.sendTransaction({from: this.walletAddress, to: this.formattedTestamentAddress, value: Utils.toBaseUnit(this.inputDepositAmount.trim(), 18).toString()});
-          let testament =  await walletInstance.testamentServiceContract.methods.testamentDetailsOf(this.walletAddress).call();
+        if (testament.exists) {
           Utils.parseTestament(this, testament, walletInstance.encryptionKey);
-          ctx.cancelTestamentChanges();
-          ctx.inputDepositAmount = "";         
-          ctx.processing = false;
-        } catch (err) {
-          onError(err);
-        } 
-      },
-
-      async withdrawFunds() {
-        let ctx = this;
-        this.processing = true;
-
-        function onError(err) {
-          ctx.processing = false;
-          console.log(err);
-
-          // Error 4001 means that user just denied the signature of the transaction, no need to show an error.
-          // The "Invalid JSON RPC response" is a workaround for the RSK wallet which doesn"t provide a good error code...
-          if (err.code !== 4001 && String(err).indexOf("Invalid JSON RPC response") === -1) {
-            let errorMsg = err;
-            if (err.message && err.message.trim().length > 0) {
-              errorMsg = err.message;
-            }
-            $("#errorMsg").text(errorMsg);
-            $("#errorModal").modal("show");
-          }
         }
 
-        let walletInstance = await Wallet.getInstance();
+        this.loading = false;
+      } catch (err) {
+        console.log(err);
+        let error = err;
+        if (err.message) {
+          error = err.message;
+        }
 
-        Utils.invokeMethodAndWaitConfirmation(
-          walletInstance.web3Instance,
-          walletInstance.testamentServiceContract.methods.withdrawTestamentFunds(Utils.toBaseUnit(this.inputWithdrawAmount.trim(), 18).toString()), 
-          this.walletAddress,
-          async function() {
-            try {
-              let testament =  await walletInstance.testamentServiceContract.methods.testamentDetailsOf(ctx.walletAddress).call();
-              Utils.parseTestament(ctx, testament, walletInstance.encryptionKey);
-              ctx.cancelTestamentChanges();
-              ctx.inputWithdrawAmount = "";         
-              ctx.processing = false;
-            } catch (err) {
-              onError(err);
-            }
-          },
-          function(err) {
+        this.loading = false;
+        this.loadingError = error;
+      }
+    },
+
+    formChanged(fieldName) {
+      this.formInputChanged[fieldName] = true;
+    },
+
+    setMaxWithdrawAmount() {
+      if (!this.processing) {
+        this.inputWithdrawAmount = Utils.formatUnit(Utils.toBN(this.testament.testamentBalance), 18);
+      }
+    },
+
+    async setupTestament() {
+      let walletInstance = await Wallet.getInstance();
+
+      let name = this.inputName.trim();
+      let email = this.inputEmail.trim();
+      let beneficiaryName = this.inputBeneficiaryName.trim();
+      let beneficiaryEmail = this.inputBeneficiaryEmail.trim();
+      let beneficiaryAddress = this.inputBeneficiaryAddress.trim().toLowerCase();
+      let proofOfLifeThreshold = Number(this.inputProofOfLife) * 24 * 3600;
+      let ctx = this;
+
+      let encryptedInfo = Utils.encryptTestament(name, email, beneficiaryName, beneficiaryEmail, walletInstance.encryptionKey);
+
+      function onError(err) {
+        ctx.processing = false;
+        console.log(err);
+
+        // Error 4001 means that user just denied the signature of the transaction, no need to show an error.
+        // The "Invalid JSON RPC response" is a workaround for the RSK wallet which doesn"t provide a good error code...
+        if (err.code !== 4001 && String(err).indexOf("Invalid JSON RPC response") === -1) {
+          let errorMsg = err;
+          if (err.message && err.message.trim().length > 0) {
+            errorMsg = err.message;
+          }
+          $("#errorMsg").text(errorMsg);
+          $("#errorModal").modal("show");
+        }
+      }
+
+      this.processing = true;
+
+      let encryptedEncryptionKey = Utils.encryptUsingServicePublicKey(Config.servicePublicKey, walletInstance.encryptionKey);
+
+      Utils.invokeMethodAndWaitConfirmation(
+        walletInstance.web3Instance,
+        walletInstance.testamentServiceContract.methods.setupTestament(beneficiaryAddress, proofOfLifeThreshold, encryptedEncryptionKey, encryptedInfo),
+        this.walletAddress,
+        async function () {
+          try {
+            let testament = await walletInstance.testamentServiceContract.methods.testamentDetailsOf(ctx.walletAddress).call();
+            Utils.parseTestament(ctx, testament, walletInstance.encryptionKey);
+            ctx.processing = false;
+            ctx.editMode = false;
+          } catch (err) {
             onError(err);
           }
-        );       
+        },
+        function (err) {
+          onError(err);
+        }
+      );
+    },
+
+    editTestament() {
+      this.editMode = true;
+      this.$nextTick(() => this.$refs.txtName.focus());
+    },
+
+    async cancelTestamentChanges() {
+      this.editMode = false;
+      let walletInstance = await Wallet.getInstance();
+      Utils.parseTestament(this, this.testament, walletInstance.encryptionKey);
+    },
+
+    async cancelTestament() {
+      let ctx = this;
+      this.processing = true;
+
+      function onError(err) {
+        ctx.processing = false;
+        console.log(err);
+
+        // Error 4001 means that user just denied the signature of the transaction, no need to show an error.
+        // The "Invalid JSON RPC response" is a workaround for the RSK wallet which doesn"t provide a good error code...
+        if (err.code !== 4001 && String(err).indexOf("Invalid JSON RPC response") === -1) {
+          let errorMsg = err;
+          if (err.message && err.message.trim().length > 0) {
+            errorMsg = err.message;
+          }
+          $("#errorMsg").text(errorMsg);
+          $("#errorModal").modal("show");
+        }
       }
-    }
-}
+
+      let walletInstance = await Wallet.getInstance();
+
+      Utils.invokeMethodAndWaitConfirmation(
+        walletInstance.web3Instance,
+        walletInstance.testamentServiceContract.methods.cancelTestament(),
+        this.walletAddress,
+        async function () {
+          try {
+            let testament = await walletInstance.testamentServiceContract.methods.testamentDetailsOf(ctx.walletAddress).call();
+            Utils.parseTestament(ctx, testament, walletInstance.encryptionKey);
+            ctx.cancelTestamentChanges();
+            ctx.processing = false;
+          } catch (err) {
+            onError(err);
+          }
+        },
+        function (err) {
+          onError(err);
+        }
+      );
+    },
+
+    async reactivateTestament() {
+      let ctx = this;
+      this.processing = true;
+
+      function onError(err) {
+        ctx.processing = false;
+        console.log(err);
+
+        // Error 4001 means that user just denied the signature of the transaction, no need to show an error.
+        // The "Invalid JSON RPC response" is a workaround for the RSK wallet which doesn"t provide a good error code...
+        if (err.code !== 4001 && String(err).indexOf("Invalid JSON RPC response") === -1) {
+          let errorMsg = err;
+          if (err.message && err.message.trim().length > 0) {
+            errorMsg = err.message;
+          }
+          $("#errorMsg").text(errorMsg);
+          $("#errorModal").modal("show");
+        }
+      }
+
+      let walletInstance = await Wallet.getInstance();
+
+      Utils.invokeMethodAndWaitConfirmation(
+        walletInstance.web3Instance,
+        walletInstance.testamentServiceContract.methods.reactivateTestament(),
+        this.walletAddress,
+        async function () {
+          try {
+            let testament = await walletInstance.testamentServiceContract.methods.testamentDetailsOf(ctx.walletAddress).call();
+            Utils.parseTestament(ctx, testament, walletInstance.encryptionKey);
+            ctx.cancelTestamentChanges();
+            ctx.processing = false;
+          } catch (err) {
+            onError(err);
+          }
+        },
+        function (err) {
+          onError(err);
+        }
+      );
+    },
+
+    async depositFunds() {
+      let ctx = this;
+      this.processing = true;
+
+      function onError(err) {
+        ctx.processing = false;
+        console.log(err);
+
+        // Error 4001 means that user just denied the signature of the transaction, no need to show an error.
+        // The "Invalid JSON RPC response" is a workaround for the RSK wallet which doesn"t provide a good error code...
+        if (err.code !== 4001 && String(err).indexOf("Invalid JSON RPC response") === -1) {
+          let errorMsg = err;
+          if (err.message && err.message.trim().length > 0) {
+            errorMsg = err.message;
+          }
+          $("#errorMsg").text(errorMsg);
+          $("#errorModal").modal("show");
+        }
+      }
+
+      let walletInstance = await Wallet.getInstance();
+
+      try {
+        await walletInstance.web3Instance.eth.sendTransaction({ from: this.walletAddress, to: this.formattedTestamentAddress, value: Utils.toBaseUnit(this.inputDepositAmount.trim(), 18).toString() });
+        let testament = await walletInstance.testamentServiceContract.methods.testamentDetailsOf(this.walletAddress).call();
+        Utils.parseTestament(this, testament, walletInstance.encryptionKey);
+        ctx.cancelTestamentChanges();
+        ctx.inputDepositAmount = "";
+        ctx.processing = false;
+      } catch (err) {
+        onError(err);
+      }
+    },
+
+    async withdrawFunds() {
+      let ctx = this;
+      this.processing = true;
+
+      function onError(err) {
+        ctx.processing = false;
+        console.log(err);
+
+        // Error 4001 means that user just denied the signature of the transaction, no need to show an error.
+        // The "Invalid JSON RPC response" is a workaround for the RSK wallet which doesn"t provide a good error code...
+        if (err.code !== 4001 && String(err).indexOf("Invalid JSON RPC response") === -1) {
+          let errorMsg = err;
+          if (err.message && err.message.trim().length > 0) {
+            errorMsg = err.message;
+          }
+          $("#errorMsg").text(errorMsg);
+          $("#errorModal").modal("show");
+        }
+      }
+
+      let walletInstance = await Wallet.getInstance();
+
+      Utils.invokeMethodAndWaitConfirmation(
+        walletInstance.web3Instance,
+        walletInstance.testamentServiceContract.methods.withdrawTestamentFunds(Utils.toBaseUnit(this.inputWithdrawAmount.trim(), 18).toString()),
+        this.walletAddress,
+        async function () {
+          try {
+            let testament = await walletInstance.testamentServiceContract.methods.testamentDetailsOf(ctx.walletAddress).call();
+            Utils.parseTestament(ctx, testament, walletInstance.encryptionKey);
+            ctx.cancelTestamentChanges();
+            ctx.inputWithdrawAmount = "";
+            ctx.processing = false;
+          } catch (err) {
+            onError(err);
+          }
+        },
+        function (err) {
+          onError(err);
+        }
+      );
+    },
+  },
+};
+
 </script>
-
-<style>
-
-</style>
