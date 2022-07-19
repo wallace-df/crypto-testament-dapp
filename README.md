@@ -1,5 +1,5 @@
 # CryptoTestament
-Vue.js implementation for CryptoTestament dApp using vue-cli-service and vue-router.
+Vue.js implementation for the CryptoTestament dApp.
 
 CryptoTestament is a dApp deployed on the RSK network (https://rsk.co/) that allows BTC holders to create digital testaments powered by smart contracts.
 
