@@ -1,11 +1,11 @@
 {
   "name": "cryptotestament",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
-    "serve": "vue-cli-service serve",
-    "build": "vue-cli-service build",
-    "lint": "vue-cli-service lint"
+    "serve": "vue-cli-service --mode development serve",
+    "build-test": "vue-cli-service --mode test build",
+    "build-prod": "vue-cli-service --mode production build"
   },
   "dependencies": {
     "@portis/web3": "^4.0.7",
@@ -23,6 +23,7 @@
     "jquery": "^3.6.0",
     "jsencrypt": "^3.2.1",
     "vue": "^3.0.0",
+    "vue-router": "^4.0.15",
     "web3": "^1.7.0"
   },
   "devDependencies": {
