@@ -1,5 +1,6 @@
 # CryptoTestament
 Frontend implementation for the CryptoTestament dApp using Vue.js + Bootstrap.
+
 This dApp has integration with rLogin (https://github.com/rsksmart/rLogin).
 
 CryptoTestament is a dApp deployed on the RSK network (https://rsk.co/) that allows BTC holders to create digital testaments powered by smart contracts.
