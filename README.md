@@ -7,21 +7,25 @@ Live dApp: https://cryptotestament.io/app
 
 
 ### Install project dependencies
-```
+
+```shell
 yarn install
 ```
 
 ### Start development server with hot-reload
-```
+
+```shell
 yarn serve
 ```
 
 ### Build for testing (RKS TestNet)
-```
+
+```shell
 yarn build-test
 ```
 
 ### Build for production (RKS MainNet)
-```
+
+```shell
 yarn build-prod
 ```
